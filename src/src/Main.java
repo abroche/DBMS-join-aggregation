@@ -11,9 +11,11 @@ public class Main {
         String cmd = "SELECT A.Col1, A.Col2, B.Col1, B.Col2 FROM A, B WHERE A.RandomV = B.RandomV";
 
         if (input.equals(cmd)) {
-            System.out.println("User input matches the predefined SQL command.");
+            Join join = new Join();
+            join.buildHashtableA();
+            System.out.println(join.hashtableA);
         } else {
-            System.out.println("User input does not match the predefined SQL command.");
+            System.out.println("Not the expected command.");
         }
 
         scanner.close();
