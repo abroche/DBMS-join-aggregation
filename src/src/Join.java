@@ -2,6 +2,8 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Hashtable;
 import java.util.LinkedList;
 
@@ -13,22 +15,8 @@ public class Join {
     static int buckets = 50;
     Hashtable<Integer, LinkedList<String>> hashtableA = new Hashtable<>();
     // {hashValue: [record1, record2,...] (bucket)
-    /*
-    Section 2
 
-    - build a hash table on dataset-A with 50 buckets
-    - buckets store the entire record content
-    - hashing of each record to know the bucket it is in should be based on the join column
-        - the sql command gives the which column is the join column
-    - for loop to read dataset-B file-by-file and record-by-record
-        - apply same hash function on join column to know the bucket to check from dataset-A
-    - if A.RandomV = B.RandomV then output the record with the needed columns
-      from the sql command
-
-    - print out the execution time taken to execute the command
-    - print out the records that qualify
-     */
-
+    ArrayList<Integer> recordsA = new ArrayList<>(9900);
 
 
     public void buildHashtableA(){
@@ -50,6 +38,97 @@ public class Join {
                     records.add(record);
                     hashtableA.put(directory, records);
                 }
+            }
+        }
+    }
+
+    public String getRecordFromDisk(int recordNum, String filename){
+        String record = null;
+        try {
+            byte[] records = Files.readAllBytes(Path.of(filename));
+            int start = (recordNum-1) * recordSize;
+            int end = start + recordSize;
+            record = new String(Arrays.copyOfRange(records, start, end));
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+        }
+//        System.out.println("Record " + recordNum + " in " + filename );
+        return record;
+    }
+
+
+    /**
+     * reads all the files in directory and each record in each file
+     */
+    public void buildArrayA() {
+        //for each file in the directory
+        for (int i = 1; i <= 99; i++) {
+            String filePath = getFilePath(i, "A");
+            String fileContent = readFile(filePath);
+            //for each record
+            for (int k = 1; k <= 100; k++) {
+                String record = getRecord(k, fileContent);
+                int randomV = getRandomV(record);
+                recordsA.add(randomV);
+            }
+        }
+    }
+
+
+    public int nestedLoopJoin(){
+        buildArrayA();
+
+        int count = 0;
+
+                for(int fileB = 1; fileB < 100; fileB++){
+                    String filePathB = getFilePath(fileB, "B");
+                    for(int rB = 1; rB < 101; rB++){
+                        String recordB = getRecordFromDisk(rB, filePathB);
+                        int randomVB = getRandomV(recordB);
+                        for(Integer randomVA: recordsA){
+                        if(randomVA > randomVB){
+                            count++;
+                        }
+                    }
+                }
+        }
+        return count;
+    }
+
+    public void aggregation(String aggregationFunction, String dataset){
+        Hashtable<String, Integer> aggregationTable = new Hashtable<>();
+
+        for(int file = 1; file < 100; file++){
+            String filePath = getFilePath(file, dataset);
+            String fileContent = readFile(filePath);
+            for(int r = 1; r < 101; r++){
+                String record = getRecord(r,fileContent);
+                int randomV = getRandomV(record);
+                String[] columns = record.split(",", -1);
+                String col2 = columns[1];
+
+                if(aggregationTable.containsKey(col2)){
+                    int sum = aggregationTable.get(col2) + randomV;
+                    aggregationTable.put(col2, sum);
+                }
+                else{
+                    aggregationTable.put(col2, randomV);
+                }
+            }
+        }
+        
+        
+        if(aggregationFunction.equalsIgnoreCase("SUM(RandomV)")){
+            for(String name: aggregationTable.keySet()){
+                int sum = aggregationTable.get(name);
+                System.out.println("Column 2: " + name + " has a RandomV sum of " + sum);
+            }
+        }
+        else if (aggregationFunction.equalsIgnoreCase("AVG(RandomV)")){
+            for(String name: aggregationTable.keySet()){
+                int avg = aggregationTable.get(name) / 99;
+                System.out.println("Column 2: " + name + " has average RandomV of " + avg);
             }
         }
     }
@@ -92,12 +171,13 @@ public class Join {
      * @return the specified record
      */
     public String getRecord(int recordNum, String fileContent) {
-        int start = ((recordNum - 1) % 100) * recordSize; //start location
+        int start = ((recordNum - 1)) * recordSize; //start location
+//        System.out.println("Record " + recordNum + "is " + fileContent.substring(start, start + 40));
         return fileContent.substring(start, start + 40);
     }
 
     public String getFilePath(int fileNum, String dataset){
-        return "Project3Dataset" + File.separator + "Project3Dataset-" + dataset + File.separator + "A" + fileNum + ".txt";
+        return "Project3Dataset" + File.separator + "Project3Dataset-" + dataset + File.separator + dataset + fileNum + ".txt";
     }
 
     public int getRandomV(String record){
